@@ -132,10 +132,7 @@ def evaluation(y, y_, y_stats):
 
     if dim == 2:
         # single_step case
-        #v = z_inverse(y, y_stats['mean'], y_stats['std'])
-        v_ = z_inverse(y_, y_stats['mean'], y_stats['std'])
-        return np.array([MAPE(y, v_), MAE(y, v_), RMSE(y, v_)])
-        # return np.array([MAPE(y, y_), MAE(y, y_), RMSE(y, y_)])
+        return np.array([MAPE(y, y_), MAE(y, y_), RMSE(y, y_)])
     else:
         # multi_step case
         tmp_list = []
