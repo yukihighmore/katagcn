@@ -1,6 +1,6 @@
-# takagcn
+# katagcn
+
 
 tensorflow 2.6.0
 
-the full code is coming soon ~~~
-best wishes ~~~
+A detailed version will be circulated after June 25th
