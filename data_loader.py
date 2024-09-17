@@ -1,5 +1,5 @@
 from utils import *
-
+import h5py
 
 # Dataset class
 class Dataset(object):
@@ -82,28 +82,53 @@ def seq_gen(seq_ppt, data_config, data_seq, time_ind, day_in_week, n_frame, n_ro
 
 
 # Divide the data into train, val and test sequences
-def data_gen(file_path, data_config, n_route, day_num, P, M, day_slot=288, week_slot=7, week_offset=0, use_weekend=False):
+def data_gen(file_path, data_config, n_route, day_num, P, M, day_slot=288, week_slot=7, week_offset=0, use_weekend=False, pems_bay=False):
     # generate training, validation and test data
     try:
         # open_file
         if file_path[-1] == 'v':
             data_seq = pd.read_csv(file_path, header=None).values
         else:
-            data = np.load(file_path)
-            data_seq = data['data'][:, :, 0]
+            if file_path[-4:] == 'Y.h5':
+                data = h5py.File(file_path, 'r')
+                data_seq = data['speed']['block0_values'][:]
+            else:
+                if file_path[-4:] == 'A.h5':
+                    data = h5py.File(file_path, 'r')
+                    data_seq = data['df']['block0_values'][:]
+                else:
+                    data = np.load(file_path)
+                    data_seq = data['data'][:, :, 0]
     except FileNotFoundError:
         print(f'ERROR: input file was not found in {file_path}.')
 
     L, N = data_seq.shape
     n_frame = P + M
+    if pems_bay == True:
+        jieduan = 288 * (31 + 28 + 11)
+        time_ind_1 = [i % day_slot for i in range(jieduan)]
+        time_ind_2 = [i % day_slot for i in range(jieduan + 288 -12, L)]
+        time_ind = time_ind_1 + time_ind_2
+        time_ind = np.array(time_ind)
 
-    # numerical time_in_day
-    time_ind = [i % day_slot for i in range(L)]
-    time_ind = np.array(time_ind)
+        day_in_week_1 = [((i // 288) + week_offset) % week_slot for i in range(jieduan)]
+        day_in_week_2 = [((i // 288) + week_offset) % week_slot for i in range(jieduan + 288 -12, L)]
+        day_in_week = day_in_week_1 + day_in_week_2
+        day_in_week = np.array(day_in_week)
+        data_seq_1 = data_seq[:jieduan, :]
+        data_seq_2 = data_seq[jieduan + 288 - 12:, :]
+        data_seq = np.concatenate((data_seq_1, data_seq_2), axis=0)
 
-    # numerical day_in_week
-    day_in_week = [((i // 288) + week_offset) % week_slot for i in range(L)]
-    day_in_week = np.array(day_in_week)
+    else:
+        # numerical time_in_day
+        time_ind = [i % day_slot for i in range(L)]
+        time_ind = np.array(time_ind)
+
+        # numerical day_in_week
+        day_in_week = [((i // 288) + week_offset) % week_slot for i in range(L)]
+        day_in_week = np.array(day_in_week)
+
+
 
     seq_train = seq_gen('train', data_config, data_seq, time_ind, day_in_week, n_frame, n_route, day_slot, day_num, use_weekend)
     train = seq_train[:, 1:, 2:]
@@ -116,6 +141,18 @@ def data_gen(file_path, data_config, n_route, day_num, P, M, day_slot=288, week_
 
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
     x_stats = {'mean': np.mean(train), 'std': np.std(train)}
+    print('train mean:')
+    print(np.mean(train))
+    print('train std:')
+    print(np.std(train))
+    print('val mean:')
+    print(np.mean(val))
+    print('val std:')
+    print(np.std(val))
+    print('test mean:')
+    print(np.mean(test))
+    print('test std:')
+    print(np.std(test))
 
     # x_train, x_val, x_test: np.array, [sample_size, n_frame, n_route].
     x_train = z_score(train, x_stats['mean'], x_stats['std'])
